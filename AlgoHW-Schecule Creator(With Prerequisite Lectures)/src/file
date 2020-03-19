@@ -1,0 +1,206 @@
+import java.io.File;
+import java.util.*;
+public class DiGraph {
+	private boolean[] marked;
+	private int V;
+	private int id;
+	private HashMap<String, Course> courses;
+	HashMap<String, ArrayList<String>> preReq;
+	private HashMap<Integer, String> match;
+	private Stack<Integer> reversePostOrder;
+
+	public DiGraph(String fileName) {
+		courses = new HashMap<String, Course>() ;
+		match = new HashMap<Integer, String>();
+		preReq = new HashMap<>();
+		File myFile = new File(fileName);
+
+		try {
+			Scanner fileReader = new Scanner(myFile);
+			int n = fileReader.nextInt();
+			this.V = n;
+			while(fileReader.hasNext()) {
+				String line = fileReader.nextLine();
+				String[] parts = line.split(" ");
+				if(parts.length>1) {
+					addVertex(parts[0].trim());
+					for(int i=1; i <parts.length; i++) {
+						addEdge(parts[0].trim(),parts[i].trim());
+						addPreReq(parts[0],parts[i]);
+					}
+				}
+				else {
+					if(!parts[0].isBlank())
+					addVertex(parts[0]);
+					addPreReq(parts[0], "");
+				}
+			}
+
+		}
+		catch(Exception e) {
+			System.out.println("Something happened while reading the file, see stach trace");
+			e.printStackTrace();
+		}
+	}
+
+	private void addEdge(String u, String v) {
+		if(!courses.containsKey(v)) {
+
+			courses.put(v, new Course(v, ++this.id));
+			match.put(this.id, v);
+		}
+		courses.get(v).addEdge(courses.get(u));
+
+	}
+	private void addPreReq(String courseName, String preRe) {
+		if(!this.preReq.containsKey(courseName)) {
+			this.preReq.put(courseName, new ArrayList<>());
+		}
+			this.preReq.get(courseName).add(preRe);
+
+
+	}
+	private void addVertex(String courseName) {
+		 if(!courses.containsKey(courseName)) {
+		courses.put(courseName, new Course(courseName, ++this.id));
+		match.put(this.id, courseName);
+		 }
+	}
+	private ArrayList<Integer> getReady(ArrayList<Integer> notReadyIn){
+		ArrayList<Integer> ready = new ArrayList<>();
+		ArrayList<Integer> notReady = notReadyIn;
+
+		for(int q =0; q<notReady.size(); q++) {
+			int x = notReady.get(q);
+			if(courses.get(match.get(x)).adj.isEmpty()){
+				if(preReq.get(match.get(x)).get(0).isBlank()) {
+					ready.add(x);
+
+				}
+				else {
+					boolean temp = true;
+					ArrayList<String> pre = preReq.get(match.get(x));
+
+					for(int i=0; i<pre.size(); i++) {
+						int y = courses.get(pre.get(i)).courseId;
+						if(notReady.contains(y))
+							temp = false;
+					}
+					if(temp)
+						ready.add(x);
+
+				}
+			}
+			else {
+				if(preReq.get(match.get(x)).get(0).isBlank()) {
+					ready.add(0, x);
+
+				}
+				else {
+					ArrayList<String> myPre = preReq.get(match.get(x));
+					boolean temp = true;
+					for(int i =0; i<myPre.size(); i++) {
+						int y = courses.get(myPre.get(i)).courseId;
+						if(notReady.contains(y)) {
+							temp = false;
+						}
+
+					}
+					if(temp)
+						ready.add(0,x);
+
+				}
+			}
+
+		}
+
+		return ready;
+	}
+	public void schedule(int n) {
+		ArrayList<Integer> notReady = new ArrayList<>();
+		Iterator it = topologicalSort();
+		while(it.hasNext()) {
+			notReady.add((Integer) it.next());
+		}
+
+		int count = 0;
+		while(!notReady.isEmpty()) {
+			ArrayList<Integer> ready = getReady(notReady);
+
+			System.out.print("Semester "+ ++count + " :" );
+			for(int i=0; i<n && (i<ready.size()); i++) {
+				int x = ready.get(i);
+				System.out.print(match.get(x)+ " ");
+				notReady.remove(ready.get(i));
+			}
+			System.out.println();
+		}
+	}
+	public void printCourses() {
+		Iterator it = topologicalSort();
+		for(String name: courses.keySet()) {
+			System.out.print(name + " :" + " id: "+ courses.get(name).getCourseId() + " ");
+			for(int i=0; i<courses.get(name).adj.size(); i++) {
+				System.out.print(courses.get(name).adj.get(i).toString() + " ");
+			}
+			System.out.println();
+		}
+	}
+	private void dfs(int v) {
+		marked[v] = true;
+
+		ArrayList<Course> myAdj = courses.get(match.get(v)).getAdj();
+		if(myAdj!=null)
+			for(Course course: myAdj)
+				if(!marked[course.courseId])
+					dfs(course.courseId);
+		reversePostOrder.push(v);
+
+	}
+
+	private Iterator topologicalSort() {
+
+		reversePostOrder = new Stack<>();
+		marked = new boolean[this.V+1];
+		for(int v=1; v<this.V+1; v++) {
+			if(!marked[v])
+				dfs(v);
+		}
+
+		/*while(!reversePostOrder.isEmpty())
+			System.out.println(match.get(reversePostOrder.pop()));*/
+		return reversePostOrder.iterator();
+	}
+
+	private class Course {
+		private String courseCode;
+		private  int courseId;
+		private ArrayList<Course> adj;
+		public Course(String courseCode, int id) {
+			this.setCourseCode(courseCode);
+			adj = new ArrayList<>();
+			this.courseId= id;
+		}
+		public ArrayList<Course> getAdj() {
+			return this.adj;
+		}
+		public int getCourseId() {
+			return this.courseId;
+		}
+
+		public String getCourseCode() {
+			return courseCode;
+		}
+
+		private void addEdge(Course higherCourse) {
+			this.adj.add(higherCourse);
+		}
+		public void setCourseCode(String courseCode) {
+			this.courseCode = courseCode;
+		}
+		public String toString() {
+			return this.courseCode;
+		}
+
+	}
+}
